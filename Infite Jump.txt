@@ -7,8 +7,9 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "JumpButtonGui"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
+screenGui.DisplayOrder = 999999 -- ✅ Siempre arriba de todo
 
--- Guardar referencia global para poder apagarlo luego si se desea
+-- Guardar referencia global para apagarlo luego si se desea
 getgenv().JumpGui = screenGui
 
 local button = Instance.new("TextButton")
@@ -98,8 +99,10 @@ UserInputService.TouchMoved:Connect(function(input)
     end
 end)
 
--- Bucle del salto infinito
+-- Bucle del salto infinito controlado por toggle
 getgenv().JumpLoop = RunService.Heartbeat:Connect(function()
+    if not getgenv().JumpBoostActive then return end
+
     local currentTime = tick()
     if currentTouchInput and currentTime - lastJumpTime > jumpCooldown then
         local currentHumanoid = getCurrentHumanoid()
