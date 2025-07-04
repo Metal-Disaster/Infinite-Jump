@@ -1,0 +1,111 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "JumpButtonGui"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
+
+-- Guardar referencia global para poder apagarlo luego si se desea
+getgenv().JumpGui = screenGui
+
+local button = Instance.new("TextButton")
+button.Name = "JumpButton"
+button.Size = UDim2.new(0, 120, 0, 120)
+button.Position = UDim2.new(1, -60, 1, -75)
+button.BackgroundColor3 = Color3.new(0, 0, 0)
+button.BackgroundTransparency = 0
+button.Text = ""
+button.BorderSizePixel = 0
+button.AnchorPoint = Vector2.new(0.5, 0.5)
+button.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = button
+
+local isJumping = false
+local currentTouchInput = nil
+local lastJumpTime = 0
+local jumpCooldown = 0.2
+local touchRadius = 100
+
+local function getCurrentHumanoid()
+    if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        return player.Character:FindFirstChildOfClass("Humanoid")
+    end
+    for _, child in pairs(player:GetDescendants()) do
+        if child:IsA("Humanoid") then
+            return child
+        end
+    end
+    return nil
+end
+
+local function isOnGround(currentHumanoid)
+    if not currentHumanoid then return false end
+    if currentHumanoid.FloorMaterial ~= Enum.Material.Air then
+        return true
+    end
+    local rootPart = currentHumanoid.RootPart or currentHumanoid.Parent:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {currentHumanoid.Parent}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        local rayOrigin = rootPart.Position
+        local rayDirection = Vector3.new(0, -3, 0)
+        local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+        return raycastResult ~= nil
+    end
+    return false
+end
+
+local function isTouchInRange(touchPosition)
+    local buttonCenter = button.AbsolutePosition + button.AbsoluteSize / 2
+    local distance = (touchPosition - buttonCenter).Magnitude
+    return distance <= touchRadius
+end
+
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        currentTouchInput = input
+    end
+end)
+
+button.InputEnded:Connect(function(input)
+    if input == currentTouchInput then
+        currentTouchInput = nil
+    end
+end)
+
+UserInputService.TouchStarted:Connect(function(input)
+    if not currentTouchInput and isTouchInRange(input.Position) then
+        currentTouchInput = input
+    end
+end)
+
+UserInputService.TouchEnded:Connect(function(input)
+    if input == currentTouchInput then
+        currentTouchInput = nil
+    end
+end)
+
+UserInputService.TouchMoved:Connect(function(input)
+    if input == currentTouchInput and not isTouchInRange(input.Position) then
+        currentTouchInput = nil
+    end
+end)
+
+-- Bucle del salto infinito
+getgenv().JumpLoop = RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+    if currentTouchInput and currentTime - lastJumpTime > jumpCooldown then
+        local currentHumanoid = getCurrentHumanoid()
+        if currentHumanoid and isOnGround(currentHumanoid) then
+            currentHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            lastJumpTime = currentTime
+        end
+    end
+end)
